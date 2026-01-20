@@ -69,26 +69,6 @@ def get_all_faculty(
         "data": faculty
     }
 
-
-# GET: Faculty by ID
-@app.get("/faculty/{faculty_id}")
-def get_faculty_by_id(faculty_id: int):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        "SELECT * FROM faculty WHERE id = ?",
-        (faculty_id,)
-    )
-    row = cursor.fetchone()
-    conn.close()
-
-    if row is None:
-        raise HTTPException(status_code=404, detail="Faculty not found")
-
-    record = parse_json_fields(dict(row))
-    return record
-
 # GET: Search Faculty
 @app.get("/faculty/search")
 def search_faculty(
@@ -120,3 +100,23 @@ def search_faculty(
         "count": len(results),
         "data": results
     }
+
+# GET: Faculty by ID
+@app.get("/faculty/{faculty_id}")
+def get_faculty_by_id(faculty_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT * FROM faculty WHERE id = ?",
+        (faculty_id,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+
+    if row is None:
+        raise HTTPException(status_code=404, detail="Faculty not found")
+
+    record = parse_json_fields(dict(row))
+    return record
+
