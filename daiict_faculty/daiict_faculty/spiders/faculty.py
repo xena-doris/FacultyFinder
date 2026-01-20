@@ -5,11 +5,11 @@ class FacultySpider(scrapy.Spider):
     name = "faculty"
     allowed_domains = ["daiict.ac.in"]
     start_urls = [
-        #"https://www.daiict.ac.in/faculty"  # faculty listing page
+        "https://www.daiict.ac.in/faculty"  # faculty listing page
         #"https://www.daiict.ac.in/adjunct-faculty"
         #"https://www.daiict.ac.in/adjunct-faculty-international"
         #"https://www.daiict.ac.in/distinguished-professor"
-        "https://www.daiict.ac.in/professor-practice"
+        #"https://www.daiict.ac.in/professor-practice"
     ]
 
     def clean_list(self, values):
@@ -23,15 +23,15 @@ class FacultySpider(scrapy.Spider):
 
         for faculty in faculty_cards:
             profile_link = faculty.css(
-                #"div.personalDetails h3 a::attr(href)" #faculty, distinguished professors
+                "div.personalDetails h3 a::attr(href)" #faculty, distinguished professors
                 #"div.personalDetail h3 a::attr(href)" #adjuct faculty
-                "div.personalsDetails h3 a::attr(href)" #professor of practice
+                #"div.personalsDetails h3 a::attr(href)" #professor of practice
             ).get()
 
             name = faculty.css(
-                #"div.personalDetails h3 a::text" #faculty, distinguished professor
+                "div.personalDetails h3 a::text" #faculty, distinguished professor
                 #"div.personalDetail h3 a::text"   #adjunct faculty
-                "div.personalsDetails h3 a::text" #professor of practice
+                #"div.personalsDetails h3 a::text" #professor of practice
             ).get()
 
             if profile_link:
@@ -99,9 +99,11 @@ class FacultySpider(scrapy.Spider):
         item["publications"] = [
             " ".join(self.clean_list(li.xpath(".//text()").getall()))
             for li in response.xpath(
-                "//div[contains(@class,'education') and contains(@class,'overflowContent')]//ul/li"
+                "//div[contains(@class,'education') and contains(@class,'overflowContent')]//ul/li | "
+                "//div[contains(@class,'education') and contains(@class,'overflowContent')]//ol/li"
             )
         ]
+
 
 
 
