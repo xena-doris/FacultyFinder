@@ -29,21 +29,33 @@ for json_file in INPUT_DIR.glob("*.json"):
 
     for faculty in data:
         row = {}
+
         for field in FIELDS:
             if field == "source_file":
                 row[field] = json_file.name
+                continue
+
+            value = faculty.get(field)
+
+            # Handle lists (publications, research, etc.)
+            if isinstance(value, list):
+                # Clean junk entries and join safely for CSV
+                cleaned = [v.strip() for v in value if isinstance(v, str) and v.strip()]
+                row[field] = " | ".join(cleaned)
+
+            # Handle missing values
+            elif value is None:
+                row[field] = ""
+
+            # Everything else (strings, numbers)
             else:
-                value = faculty.get(field)
-                # Convert lists to JSON strings
-                if isinstance(value, list):
-                    row[field] = json.dumps(value, ensure_ascii=False)
-                else:
-                    row[field] = value
+                row[field] = value
+
         rows.append(row)
 
 with open(OUTPUT_CSV, "w", newline="", encoding="utf-8") as f:
-    writer = csv.DictWriter(f, fieldnames=FIELDS)
+    writer = csv.DictWriter(f, fieldnames=FIELDS, quoting=csv.QUOTE_MINIMAL)
     writer.writeheader()
     writer.writerows(rows)
 
-print(f"CSV created: {OUTPUT_CSV}")
+print(f"CSV created successfully: {OUTPUT_CSV}")
