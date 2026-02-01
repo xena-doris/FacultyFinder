@@ -18,6 +18,7 @@ FIELDS = [
     "teaching",
     "publications",
     "research",
+    "faculty_type",
     "source_file",
 ]
 
@@ -25,38 +26,31 @@ FIELDS = [
 def load_json_file(json_path: Path) -> List[Dict[str, Any]]:
     """
     Load a JSON file containing faculty records.
-
-    Parameters
-    ----------
-    json_path : Path
-        Path to the JSON file.
-
-    Returns
-    -------
-    list of dict
-        List of faculty records.
     """
     with open(json_path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def clean_list(values: Any) -> str:
+    """
+    Convert list values to a pipe-separated string.
+
+    Examples
+    --------
+    ["AI", "ML"] -> "AI | ML"
+    """
+    if not isinstance(values, list):
+        return ""
+
+    cleaned = [v.strip() for v in values if isinstance(v, str) and v.strip()]
+    return " | ".join(cleaned)
 
 
 def process_faculty_record(
     faculty: Dict[str, Any], source_file: str
 ) -> Dict[str, str]:
     """
-    Process a single faculty record into a flat CSV-compatible dictionary.
-
-    Parameters
-    ----------
-    faculty : dict
-        Raw faculty data from JSON.
-    source_file : str
-        Name of the JSON file from which the record was loaded.
-
-    Returns
-    -------
-    dict
-        Cleaned and flattened faculty record.
+    Process a single faculty record into a CSV-compatible dictionary.
     """
     row = {}
 
@@ -67,18 +61,15 @@ def process_faculty_record(
 
         value = faculty.get(field)
 
-        # Handle list fields (education, publications, etc.)
+        # Handle list fields
         if isinstance(value, list):
-            cleaned = [
-                v.strip() for v in value if isinstance(v, str) and v.strip()
-            ]
-            row[field] = " | ".join(cleaned)
+            row[field] = clean_list(value)
 
         # Handle missing values
         elif value is None:
             row[field] = ""
 
-        # Everything else (strings, numbers)
+        # Everything else
         else:
             row[field] = str(value).strip()
 
@@ -88,62 +79,49 @@ def process_faculty_record(
 def convert_json_dir_to_csv(input_dir: Path, output_csv: Path) -> None:
     """
     Convert all JSON files in a directory into a single CSV file.
-
-    Parameters
-    ----------
-    input_dir : Path
-        Directory containing JSON files.
-    output_csv : Path
-        Path to the output CSV file.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the input directory does not exist.
     """
     if not input_dir.exists():
         raise FileNotFoundError(f"Input directory not found: {input_dir}")
 
-    rows = []
+    rows: List[Dict[str, str]] = []
 
     for json_file in input_dir.glob("*.json"):
         data = load_json_file(json_file)
 
         for faculty in data:
-            row = process_faculty_record(
-                faculty=faculty,
-                source_file=json_file.name
+            rows.append(
+                process_faculty_record(
+                    faculty=faculty,
+                    source_file=json_file.name,
+                )
             )
-            rows.append(row)
 
     with open(output_csv, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
-            f, fieldnames=FIELDS, quoting=csv.QUOTE_MINIMAL
+            f,
+            fieldnames=FIELDS,
+            quoting=csv.QUOTE_MINIMAL,
         )
         writer.writeheader()
         writer.writerows(rows)
 
     print(f"✅ CSV created successfully: {output_csv}")
+    print(f"📊 Total rows written: {len(rows)}")
 
 
 def parse_arguments() -> argparse.Namespace:
     """
     Parse command-line arguments.
-
-    Returns
-    -------
-    argparse.Namespace
-        Parsed arguments containing input and output paths.
     """
     parser = argparse.ArgumentParser(
-        description="Convert faculty JSON files into a single CSV file"
+        description="Convert faculty JSON files to a single CSV"
     )
 
     parser.add_argument(
         "--input-dir",
         type=Path,
         required=True,
-        help="Directory containing faculty JSON files",
+        help="Directory containing scraped faculty JSON files",
     )
 
     parser.add_argument(
@@ -157,9 +135,6 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def main() -> None:
-    """
-    Entry point for CLI execution.
-    """
     args = parse_arguments()
     convert_json_dir_to_csv(args.input_dir, args.output_csv)
 
