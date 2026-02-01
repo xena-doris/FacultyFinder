@@ -6,6 +6,7 @@
 import scrapy
 
 class FacultyItem(scrapy.Item):
+    faculty_type = scrapy.Field()
     name = scrapy.Field()
     profile_url = scrapy.Field()
     education = scrapy.Field()
