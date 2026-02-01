@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS faculty (
     publications TEXT,
     research TEXT,
     text_for_embedding TEXT,
-    source_file TEXT
+    source_file TEXT,
+    faculty_type TEXT
 )
 """
 
@@ -28,16 +29,6 @@ CREATE TABLE IF NOT EXISTS faculty (
 def create_database(db_path: Path) -> sqlite3.Connection:
     """
     Create (or connect to) a SQLite database and ensure schema exists.
-
-    Parameters
-    ----------
-    db_path : Path
-        Path to SQLite database file.
-
-    Returns
-    -------
-    sqlite3.Connection
-        Active SQLite database connection.
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -46,52 +37,51 @@ def create_database(db_path: Path) -> sqlite3.Connection:
     return conn
 
 
+def truncate_faculty_table(conn: sqlite3.Connection) -> None:
+    """
+    Remove all existing records from the faculty table.
+    """
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM faculty")
+    conn.commit()
+
+
 def insert_faculty_data(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
     """
     Insert faculty records into the database.
-
-    Parameters
-    ----------
-    conn : sqlite3.Connection
-        Active SQLite connection.
-    df : pandas.DataFrame
-        Cleaned faculty dataframe.
-
-    Returns
-    -------
-    int
-        Number of records processed.
     """
     cursor = conn.cursor()
 
     insert_query = """
-    INSERT OR IGNORE INTO faculty (
+    INSERT INTO faculty (
         name, profile_url, email, phone, address, faculty_web,
         education, biography, specialization, teaching,
-        publications, research, text_for_embedding, source_file
+        publications, research, text_for_embedding,
+        source_file, faculty_type
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
 
     for _, row in df.iterrows():
         cursor.execute(
             insert_query,
             (
-                row["name"],
-                row["profile_url"],
-                row["email"],
-                row["phone"],
-                row["address"],
-                row["faculty_web"],
-                row["education"],
-                row["biography"],
-                row["specialization"],
-                row["teaching"],
-                row["publications"],
-                row["research"],
-                row["text_for_embedding"],
-                row["source_file"],
-            ),
+                row.get("name"),
+                row.get("profile_url"),
+                row.get("email"),
+                row.get("phone"),
+                row.get("address"),
+                row.get("faculty_web"),
+                row.get("education"),
+                row.get("biography"),
+                row.get("specialization"),
+                row.get("teaching"),
+                row.get("publications"),
+                row.get("research"),
+                row.get("text_for_embedding"),
+                row.get("source_file"),
+                row.get("faculty_type"),
+            )
         )
 
     conn.commit()
@@ -100,19 +90,8 @@ def insert_faculty_data(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
 
 def csv_to_sqlite(input_csv: Path, db_path: Path) -> None:
     """
-    Load cleaned faculty CSV data into a SQLite database.
-
-    Parameters
-    ----------
-    input_csv : Path
-        Path to cleaned faculty CSV file.
-    db_path : Path
-        Path to SQLite database file.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the input CSV file does not exist.
+    Load cleaned faculty CSV data into a SQLite database
+    after truncating existing records.
     """
     if not input_csv.exists():
         raise FileNotFoundError(f"Input CSV not found: {input_csv}")
@@ -120,21 +99,20 @@ def csv_to_sqlite(input_csv: Path, db_path: Path) -> None:
     df = pd.read_csv(input_csv)
 
     conn = create_database(db_path)
+
+    # 🔥 IMPORTANT FIX
+    truncate_faculty_table(conn)
+
     record_count = insert_faculty_data(conn, df)
     conn.close()
 
-    print(f"✅ Cleaned faculty data stored in: {db_path}")
-    print(f"📊 Records processed: {record_count}")
+    print(f"✅ Faculty table refreshed in database: {db_path}")
+    print(f"📊 Records inserted: {record_count}")
 
 
 def parse_arguments() -> argparse.Namespace:
     """
     Parse command-line arguments.
-
-    Returns
-    -------
-    argparse.Namespace
-        Parsed CSV and database paths.
     """
     parser = argparse.ArgumentParser(
         description="Import cleaned faculty CSV data into SQLite database"
@@ -158,9 +136,6 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def main() -> None:
-    """
-    Entry point for CLI execution.
-    """
     args = parse_arguments()
     csv_to_sqlite(args.input_csv, args.db_name)
 
