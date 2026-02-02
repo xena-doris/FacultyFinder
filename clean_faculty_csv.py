@@ -89,10 +89,10 @@ def create_text_for_embedding(df: pd.DataFrame) -> pd.Series:
     Create a combined text field for embeddings/search.
     """
     text = (
-        df["name"].fillna("") + ". " +
         df["biography"].apply(lambda x: " ".join(x)) + " " +
         df["specialization"].apply(lambda x: " ".join(x)) + " " +
-        df["research"].apply(lambda x: " ".join(x))
+        df["research"].apply(lambda x: " ".join(x)) + " " +
+        df["teaching"].apply(lambda x: " ".join(x))
     )
 
     return text.apply(clean_text)
