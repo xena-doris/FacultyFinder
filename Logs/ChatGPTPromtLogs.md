@@ -35,3 +35,15 @@ Implemented a FastAPI /faculty/search endpoint using query parameters and SQLite
 Problem faced & solution:
 Issue: FastAPI expected query parameters, but the request format didn’t match (422 error).
 Solution: Explicitly defined parameters using Query(...), ensured correct request format (?name=xyz), and validated input before executing the SQL query.
+
+## 4) Prompt given:
+**"Help in writing proper docstrings for all functions in my project and creating a single pipeline script to run the entire project easily from the terminal or command prompt.."**
+
+Tool used: ChatGPT
+
+Response received:
+Clear and consistent docstrings explaining each function’s purpose, parameters, and outputs.
+A single pipeline script that integrates all modules and allows execution through one terminal command.
+
+Problem faced & solution:
+Struggled with maintaining consistent docstring formatting and understanding how to combine multiple modules into one executable pipeline. This was resolved by following a standard docstring structure and using a main pipeline file with a proper entry point, enabling smooth execution of the project from the terminal.

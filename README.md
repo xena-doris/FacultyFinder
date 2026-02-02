@@ -20,12 +20,13 @@ Project1/
 │   │   │   └── faculty.py          # Main spider for scraping faculty data
 │   │   ├── items.py                # Item definitions for scraped data
 │   └── JSON files                  # Scraped faculty data (JSON format)
-│       ├── faculty1.json
-│       ├── adjunct-faculty1.json
-│       ├── distinguished-professor1.json
-│       ├── international-adjunct-faculty1.json
-│       └── professor-practice1.json
+│       ├── faculty.json
+│       ├── adjunct.json
+│       ├── distinguished.json
+│       ├── international_adjunct.json
+│       └── practice.json
 ├── main.py                         # FastAPI application
+├── pipeline.py                     # One Command Runs everything
 ├── json_to_csv.py                  # Converts JSON data to CSV
 ├── clean_faculty_csv.py            # Cleans and normalizes CSV data
 ├── csv_to_sqlite.py                # Imports cleaned CSV to SQLite database
@@ -78,6 +79,8 @@ The system collects the following information for each faculty member:
 - **publications** - Research publications (list)
 - **research** - Research interests/areas (list)
 - **source_file** - Source JSON file name
+- **faculty_type** - The type of faculty
+
 
 ## 🚀 Setup & Installation
 
@@ -97,8 +100,7 @@ pip install scrapy fastapi uvicorn pandas sqlite3
 ### Running the Scraper
 
 ```bash
-cd daiict_faculty
-scrapy crawl faculty -o output.json
+python pipeline.py --scrape
 ```
 
 ### Scraper Features
@@ -114,19 +116,28 @@ scrapy crawl faculty -o output.json
 
 ### Step 1: JSON to CSV Conversion
 
+```bash
+python pipeline.py --json-to-csv
+```
+
 **File**: `json_to_csv.py`
 
 Converts scraped JSON files to CSV format:
 
-**Input**: JSON files from scraper
-**Output**: `faculty_all.csv`
+**Input**: JSON files from scraper (taken automatically)
+**Output**: `faculty_all.csv` 
 
 **Features**:
 - Handles nested lists and structures
 - Preserves source file information
 - Cleans and formats data for CSV compatibility
+- Includes `faculty_type` field (categorizes source e.g., `adjunct`, `distinguished`)
 
 ### Step 2: Data Cleaning
+
+```bash
+python pipeline.py --clean-csv
+```
 
 **File**: `clean_faculty_csv.py`
 
@@ -142,6 +153,9 @@ Cleans and normalizes the CSV data:
 - Parses and validates JSON list fields
 - Filters out short/invalid entries
 - Normalizes text across all fields
+- Creates `text_for_embedding` (combined text for search/embeddings)
+- Converts list columns to JSON strings for storage
+- Retains `faculty_type` as a text field for filtering
 
 **List Columns Processed**:
 - education
@@ -152,6 +166,10 @@ Cleans and normalizes the CSV data:
 - research
 
 ### Step 3: SQLite Database Creation
+
+```bash
+python pipeline.py --to-sqlite
+```
 
 **File**: `csv_to_sqlite.py`
 
@@ -165,6 +183,7 @@ Imports cleaned CSV data into SQLite database:
 - Enforces unique email constraint
 - Auto-incrementing primary keys
 - Handles data type conversions
+- Truncates existing faculty table before refresh
 - Ignores duplicate records
 
 ## 🌐 REST API
@@ -175,9 +194,9 @@ Imports cleaned CSV data into SQLite database:
 python -m uvicorn main:app --reload
 ```
 
-Server will start at: `http://localhost:8000`
+Server will start at: `http://127.0.0.1:8000`
 
-**Interactive API Documentation**: `http://localhost:8000/docs`
+**Interactive API Documentation**: `http://127.0.0.1:8000/docs`
 
 ### API Endpoints
 
@@ -188,12 +207,13 @@ GET /faculty
 ```
 
 **Query Parameters**:
+- `faculty_type` (string, optional) - Filter by faculty type (e.g., `adjunct`, `distinguished`)
 - `limit` (int, default: 100, max: 500) - Number of records to return
 - `offset` (int, default: 0) - Pagination offset
 
 **Example**:
 ```bash
-curl "http://localhost:8000/faculty?limit=10&offset=0"
+curl "http://127.0.0.1:8000/faculty?limit=10&offset=0"
 ```
 
 **Response**:
@@ -225,22 +245,22 @@ GET /faculty/{id}
 
 **Example**:
 ```bash
-curl "http://localhost:8000/faculty/1"
+curl "http://127.0.0.1:8000/faculty/1"
 ```
 
-#### 3. Search Faculty by Name
+#### 3. Search Faculty (by query text)
 
 ```
 GET /faculty/search
 ```
 
 **Query Parameters**:
-- `name` (string, required) - Faculty member's name or partial name
-- `limit` (int, default: 100)
+- `q` (string, required, min_length=2) - Text to search in `name` and `text_for_embedding`
+- `faculty_type` (string, optional) - Filter results by faculty type
 
 **Example**:
 ```bash
-curl "http://localhost:8000/faculty/search?name=Dr.%20John"
+curl "http://127.0.0.1:8000/faculty/search?q=Dr.%20John&faculty_type=adjunct"
 ```
 
 ## 📦 Database Schema
@@ -261,7 +281,8 @@ CREATE TABLE faculty (
     publications TEXT,        
     research TEXT,            
     text_for_embedding TEXT,   
-    source_file TEXT          
+    source_file TEXT,
+    faculty_type TEXT
 )
 ```
 
@@ -280,8 +301,8 @@ The data cleaning pipeline includes:
 
 ### Data Statistics
 
-- **Total Faculty Records**: 109 faculty members
-- **Data Sources**: 5 JSON files for each type of Faculty (faculty, adjunct, international, distinguished professors, professor of practice)
+- **Total Faculty Records**: 113 faculty members (based on current `faculty_all_cleaned.csv`)
+- **Data Sources**: 5 JSON files: `faculty.json`, `adjunct.json`, `distinguished.json`, `international_adjunct.json`, `practice.json`
 - **Completeness**: Various fields may have partial data based on website availability
 
 ## 🛠️ Technologies Used
