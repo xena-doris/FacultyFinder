@@ -62,6 +62,12 @@ DAIICT Website
   REST API Endpoints
 ```
 
+### Running the Entire Pipeline
+```bash
+python pipeline\pipeline.py --all
+```
+
+
 ## 📊 Data Fields Collected
 
 The system collects the following information for each faculty member:
@@ -100,7 +106,7 @@ pip install scrapy fastapi uvicorn pandas sqlite3
 ### Running the Scraper
 
 ```bash
-python pipeline.py --scrape
+python pipeline\pipeline.py --scrape
 ```
 
 ### Scraper Features
@@ -117,7 +123,7 @@ python pipeline.py --scrape
 ### Step 1: JSON to CSV Conversion
 
 ```bash
-python pipeline.py --json-to-csv
+python pipeline\pipeline.py --json-to-csv
 ```
 
 **File**: `json_to_csv.py`
@@ -136,7 +142,7 @@ Converts scraped JSON files to CSV format:
 ### Step 2: Data Cleaning
 
 ```bash
-python pipeline.py --clean-csv
+python pipeline\pipeline.py --clean-csv
 ```
 
 **File**: `clean_faculty_csv.py`
@@ -168,7 +174,7 @@ Cleans and normalizes the CSV data:
 ### Step 3: SQLite Database Creation
 
 ```bash
-python pipeline.py --to-sqlite
+python pipeline\pipeline.py --to-sqlite
 ```
 
 **File**: `csv_to_sqlite.py`
@@ -191,7 +197,7 @@ Imports cleaned CSV data into SQLite database:
 ### Running the API Server
 
 ```bash
-python -m uvicorn main:app --reload
+python -m uvicorn pipeline.main:app --reload
 ```
 
 Server will start at: `http://127.0.0.1:8000`
