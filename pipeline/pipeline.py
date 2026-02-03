@@ -2,6 +2,10 @@ import argparse
 import subprocess
 from pathlib import Path
 
+# ---------- PATHS ----------
+PIPELINE_DIR = Path(__file__).resolve().parent     # Project1/pipeline
+PROJECT_ROOT = PIPELINE_DIR.parent                 # Project1
+SCRAPY_DIR = PROJECT_ROOT / "daiict_faculty"       # Scrapy project root
 
 FACULTY_TYPES = [
     "faculty",
@@ -12,16 +16,17 @@ FACULTY_TYPES = [
 ]
 
 
+# ---------- PIPELINE STEPS ----------
 def run_scraper():
     """
     Run Scrapy spider for all faculty types.
     """
-    print("Starting web scraping for all faculty types")
+    print("🚀 Starting web scraping")
 
     for faculty_type in FACULTY_TYPES:
-        output_file = f"{faculty_type}.json"
+        output_file = SCRAPY_DIR / f"{faculty_type}.json"
 
-        print(f"Scraping faculty_type='{faculty_type}' → {output_file}")
+        print(f"🕷️  Scraping '{faculty_type}' → {output_file.name}")
 
         subprocess.run(
             [
@@ -31,25 +36,22 @@ def run_scraper():
                 "-a",
                 f"faculty_type={faculty_type}",
                 "-o",
-                output_file,
+                str(output_file),
             ],
-            cwd="daiict_faculty",
+            cwd=SCRAPY_DIR,   # MUST be scrapy root
             check=True,
         )
 
-    print("Completed scraping for all faculty types")
+    print("✅ Scraping completed")
 
 
 def run_json_to_csv(input_dir: Path, output_csv: Path):
-    """
-    Convert scraped JSON files to CSV.
-    """
-    print("Converting JSON files to CSV")
+    print("📄 Converting JSON → CSV")
 
     subprocess.run(
         [
             "python",
-            "json_to_csv.py",
+            str(PIPELINE_DIR / "json_to_csv.py"),
             "--input-dir",
             str(input_dir),
             "--output-csv",
@@ -58,19 +60,14 @@ def run_json_to_csv(input_dir: Path, output_csv: Path):
         check=True,
     )
 
-    print("JSON → CSV conversion completed")
-
 
 def run_clean_csv(input_csv: Path, output_csv: Path):
-    """
-    Clean and normalize faculty CSV.
-    """
-    print("Cleaning raw faculty CSV")
+    print("🧹 Cleaning CSV")
 
     subprocess.run(
         [
             "python",
-            "clean_faculty_csv.py",
+            str(PIPELINE_DIR / "clean_faculty_csv.py"),
             "--input-csv",
             str(input_csv),
             "--output-csv",
@@ -79,19 +76,14 @@ def run_clean_csv(input_csv: Path, output_csv: Path):
         check=True,
     )
 
-    print("CSV cleaning completed")
-
 
 def run_csv_to_sqlite(input_csv: Path, db_path: Path):
-    """
-    Load cleaned CSV into SQLite database.
-    """
-    print(f"Importing cleaned CSV into SQLite DB: {db_path}")
+    print("🗄️  Loading data into SQLite")
 
     subprocess.run(
         [
             "python",
-            "csv_to_sqlite.py",
+            str(PIPELINE_DIR / "csv_to_sqlite.py"),
             "--input-csv",
             str(input_csv),
             "--db-name",
@@ -100,56 +92,45 @@ def run_csv_to_sqlite(input_csv: Path, db_path: Path):
         check=True,
     )
 
-    print("CSV → SQLite import completed")
 
-
+# ---------- ARGUMENTS ----------
 def parse_arguments():
-    """
-    Parse pipeline arguments.
-    """
     parser = argparse.ArgumentParser(
         description="Run Faculty Finder data pipeline"
     )
 
-    parser.add_argument(
-        "--all",
-        action="store_true",
-        help="Run full pipeline (scrape → SQLite)",
-    )
-
-    parser.add_argument("--scrape", action="store_true", help="Run scraper only")
-    parser.add_argument("--json-to-csv", action="store_true", help="Run JSON → CSV")
-    parser.add_argument("--clean-csv", action="store_true", help="Run CSV cleaning")
-    parser.add_argument("--to-sqlite", action="store_true", help="Run CSV → SQLite")
+    parser.add_argument("--all", action="store_true")
+    parser.add_argument("--scrape", action="store_true")
+    parser.add_argument("--json-to-csv", action="store_true")
+    parser.add_argument("--clean-csv", action="store_true")
+    parser.add_argument("--to-sqlite", action="store_true")
 
     parser.add_argument(
         "--json-dir",
         type=Path,
-        default=Path("daiict_faculty"),
+        default=SCRAPY_DIR,
         help="Directory containing scraped JSON files",
     )
     parser.add_argument(
         "--raw-csv",
         type=Path,
-        default=Path("faculty_all.csv"),
-        help="Path to raw CSV file",
+        default=PIPELINE_DIR / "faculty_all.csv",
     )
     parser.add_argument(
         "--clean-csv-out",
         type=Path,
-        default=Path("faculty_all_cleaned.csv"),
-        help="Path to cleaned CSV file",
+        default=PIPELINE_DIR / "faculty_all_cleaned.csv",
     )
     parser.add_argument(
         "--db-name",
         type=Path,
-        default=Path("faculty.db"),
-        help="SQLite database file",
+        default=PIPELINE_DIR / "faculty.db",
     )
 
     return parser.parse_args()
 
 
+# ---------- MAIN ----------
 def main():
     args = parse_arguments()
 
@@ -158,7 +139,7 @@ def main():
         run_json_to_csv(args.json_dir, args.raw_csv)
         run_clean_csv(args.raw_csv, args.clean_csv_out)
         run_csv_to_sqlite(args.clean_csv_out, args.db_name)
-        print("✅ Full pipeline completed successfully")
+        print("🎉 Full pipeline completed successfully")
         return
 
     if args.scrape:
@@ -177,13 +158,17 @@ def main():
 if __name__ == "__main__":
     main()
 
-
 """
-run everything - python pipeline.py --all
-run individual steps 
-    python pipeline.py --scrape
-    python pipeline.py --json-to-csv
-    python pipeline.py --clean-csv
-    python pipeline.py --to-sqlite
-    uvicorn main:app --reload
+Run this from the Main Project Folder
+
+python pipeline/pipeline.py --all
+
+python pipeline/pipeline.py --scrape
+python pipeline/pipeline.py --json-to-csv
+python pipeline/pipeline.py --clean-csv
+python pipeline/pipeline.py --to-sqlite
+
+uvicorn pipeline.main:app --reload
+
+
 """

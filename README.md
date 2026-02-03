@@ -24,16 +24,17 @@ Project1/
 │       ├── adjunct.json
 │       ├── distinguished.json
 │       ├── international_adjunct.json
-│       └── practice.json
-├── main.py                         # FastAPI application
-├── pipeline.py                     # One Command Runs everything
-├── json_to_csv.py                  # Converts JSON data to CSV
-├── clean_faculty_csv.py            # Cleans and normalizes CSV data
-├── csv_to_sqlite.py                # Imports cleaned CSV to SQLite database
-├── faculty_all.csv                 # Raw faculty data (CSV)
-├── faculty_all_cleaned.csv         # Cleaned faculty data (CSV)
-├── faculty.db                      # SQLite database
-└── README.md                       # This file
+│       ├── practice.json
+├──pipeline/
+│   ├── main.py                         # FastAPI application
+│   ├── pipeline.py                     # One Command Runs everything
+│   ├── json_to_csv.py                  # Converts JSON data to CSV
+│   ├── clean_faculty_csv.py            # Cleans and normalizes CSV data
+│   ├── csv_to_sqlite.py                # Imports cleaned CSV to SQLite database
+│   ├── faculty_all.csv                 # Raw faculty data (CSV)
+│   ├── faculty_all_cleaned.csv         # Cleaned faculty data (CSV)
+│   ├── faculty.db                      # SQLite database
+└── README.md            # This file
 ```
 
 ## 🔄 Data Pipeline Flow

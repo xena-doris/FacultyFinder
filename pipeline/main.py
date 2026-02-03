@@ -129,6 +129,9 @@ def create_app(db_path: Path) -> FastAPI:
 
     return app
 
+# ---- APP ENTRYPOINT ----
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = BASE_DIR / "faculty.db"
 
-# ✅ THIS IS WHAT UVICORN IMPORTS
-app = create_app(Path("faculty.db"))
+app = create_app(DB_PATH)
+
