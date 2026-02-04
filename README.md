@@ -34,6 +34,14 @@ Project1/
 │   ├── faculty_all.csv                 # Raw faculty data (CSV)
 │   ├── faculty_all_cleaned.csv         # Cleaned faculty data (CSV)
 │   ├── faculty.db                      # SQLite database
+├──model/
+│   ├── fetch_data.py                         
+│   ├── build_embeddings.py                     
+│   ├── recommender.py                  
+│   └── JSON files/                
+│       ├── faculty_data.json
+│       ├── faculty_embeddings_all_mpnet.json
+│       ├── faculty_meta_all_mpnet.json
 └── README.md            # This file
 ```
 

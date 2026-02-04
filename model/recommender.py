@@ -2,76 +2,36 @@
 recommender.py
 
 Semantic faculty recommender system using sentence embeddings and
-cosine similarity with acronym-aware query expansion.
+cosine similarity with robust query embeddings (no explicit acronym maps).
 
-Given a free-text research query, this module returns the most relevant
-faculty members based on semantic alignment.
+All paths and model settings are sourced from the central config module.
 """
 
 import json
 from typing import List, Dict, Optional
 
 import numpy as np
-from sentence_transformers import SentenceTransformer # type: ignore
+from sentence_transformers import SentenceTransformer  # type: ignore
 from sklearn.metrics.pairwise import cosine_similarity
 
-
-# -------------------- CONFIG --------------------
-
-ARTIFACT_DIR = "model/artifacts"
-
-EMBEDDINGS_PATH = f"{ARTIFACT_DIR}/faculty_embeddings.npy"
-META_PATH = f"{ARTIFACT_DIR}/faculty_meta.json"
-
-MODEL_NAME = "all-mpnet-base-v2"
-
+from config.base import (
+    FACULTY_EMBEDDINGS_PATH,
+    FACULTY_META_PATH,
+)
+from config.settings import (
+    EMBEDDING_MODEL_NAME,
+    TOP_K_RESULTS,
+)
 
 
-# -------------------- ACRONYM EXPANSION --------------------
+# -------------------- LOADERS --------------------
 
-ACRONYM_MAP = {
-    "ml": "machine learning",
-    "dl": "deep learning",
-    "ai": "artificial intelligence",
-    "nlp": "natural language processing",
-    "cv": "computer vision",
-    "ir": "information retrieval",
-    "hci": "human computer interaction",
-    "iot": "internet of things",
-    "dbms": "database management systems",
-    "os": "operating systems",
-    "ds": "data science",
-    "nn": "neural networks",
-    "rl": "reinforcement learning",
-    "vlsi": "very large scale integration",
-    "llm" : 'large language model'
-}
-
-
-def expand_acronyms(query: str) -> str:
-    """
-    Expand common research acronyms into full phrases
-    to improve embedding quality.
-
-    Args:
-        query (str): User input query
-
-    Returns:
-        str: Expanded query text
-    """
-    words = query.lower().split()
-    expanded = [ACRONYM_MAP.get(word, word) for word in words]
-    return " ".join(expanded)
-
-
-# -------------------- UTILS --------------------
-
-def load_embeddings(path: str) -> np.ndarray:
+def load_embeddings(path) -> np.ndarray:
     """
     Load faculty embeddings from disk.
 
     Args:
-        path (str): Path to .npy embeddings file
+        path (Path): Path to embeddings file
 
     Returns:
         np.ndarray: Embedding matrix (N, D)
@@ -79,12 +39,12 @@ def load_embeddings(path: str) -> np.ndarray:
     return np.load(path)
 
 
-def load_metadata(path: str) -> List[Dict]:
+def load_metadata(path) -> List[Dict]:
     """
     Load faculty metadata aligned with embeddings.
 
     Args:
-        path (str): Path to metadata JSON file
+        path (Path): Path to metadata JSON file
 
     Returns:
         List[Dict]: Faculty metadata
@@ -93,22 +53,43 @@ def load_metadata(path: str) -> List[Dict]:
         return json.load(f)
 
 
-def embed_query(query: str, model: SentenceTransformer) -> np.ndarray:
+# -------------------- QUERY EMBEDDING --------------------
+
+def embed_query_robust(query: str, model: SentenceTransformer) -> np.ndarray:
     """
-    Convert a user query into a normalized embedding.
+    Generate a robust query embedding by augmenting short queries
+    with generic academic context and averaging embeddings.
+
+    This avoids explicit acronym expansion and relies on the model
+    to resolve semantics.
 
     Args:
-        query (str): Input research interest text
-        model (SentenceTransformer): Loaded embedding model
+        query (str): User input query
+        model (SentenceTransformer): Sentence embedding model
 
     Returns:
         np.ndarray: Query embedding (1, D)
     """
-    embedding = model.encode(
-        query,
-        normalize_embeddings=True
+    query = query.strip()
+
+    augmented_queries = [query]
+
+    if len(query.split()) <= 2:
+        augmented_queries.extend([
+            f"{query} research",
+            f"{query} in computer science",
+            f"{query} academic research",
+            f"{query} field of study",
+        ])
+
+    embeddings = model.encode(
+        augmented_queries,
+        normalize_embeddings=True,
     )
-    return embedding.reshape(1, -1)
+
+    query_embedding = np.mean(embeddings, axis=0)
+
+    return query_embedding.reshape(1, -1)
 
 
 # -------------------- RECOMMENDER CORE --------------------
@@ -118,8 +99,8 @@ def recommend_faculty(
     embeddings: np.ndarray,
     metadata: List[Dict],
     model: SentenceTransformer,
-    top_k: int = 5,
-    faculty_type: Optional[str] = None
+    top_k: int = TOP_K_RESULTS,
+    faculty_type: Optional[str] = None,
 ) -> List[Dict]:
     """
     Recommend faculty members based on semantic similarity.
@@ -135,8 +116,7 @@ def recommend_faculty(
     Returns:
         List[Dict]: Ranked faculty recommendations
     """
-    expanded_query = expand_acronyms(query)
-    query_embedding = embed_query(expanded_query, model)
+    query_embedding = embed_query_robust(query, model)
 
     similarity_scores = cosine_similarity(
         query_embedding,
@@ -145,7 +125,7 @@ def recommend_faculty(
 
     ranked_indices = np.argsort(similarity_scores)[::-1]
 
-    results = []
+    results: List[Dict] = []
 
     for idx in ranked_indices:
         faculty = metadata[idx]
@@ -158,7 +138,7 @@ def recommend_faculty(
             "name": faculty["name"],
             "faculty_type": faculty["faculty_type"],
             "similarity_score": round(float(similarity_scores[idx]), 4),
-            "matched_text": faculty.get("text", "")
+            "matched_text": faculty.get("text", ""),
         })
 
         if len(results) >= top_k:
@@ -167,20 +147,21 @@ def recommend_faculty(
     return results
 
 
-# -------------------- DEMO / CLI --------------------
+# -------------------- CLI DEMO --------------------
 
 def main() -> None:
     """
-    Simple CLI demo for the faculty recommender.
+    Interactive CLI demo for the faculty recommender.
     """
     print("🔍 Loading recommender artifacts...")
 
-    embeddings = load_embeddings(EMBEDDINGS_PATH)
-    metadata = load_metadata(META_PATH)
-    model = SentenceTransformer(MODEL_NAME)
+    embeddings = load_embeddings(FACULTY_EMBEDDINGS_PATH)
+    metadata = load_metadata(FACULTY_META_PATH)
+    model = SentenceTransformer(EMBEDDING_MODEL_NAME)
 
     print("✅ Recommender ready!")
-    print("-" * 50)
+    print(f"🤖 Model: {EMBEDDING_MODEL_NAME}")
+    print("-" * 60)
 
     while True:
         query = input("\nEnter your research interest (or 'exit'): ").strip()
@@ -189,15 +170,11 @@ def main() -> None:
             print("👋 Goodbye!")
             break
 
-        expanded = expand_acronyms(query)
-        print(f"🔎 Interpreted query: {expanded}")
-
         results = recommend_faculty(
             query=query,
             embeddings=embeddings,
             metadata=metadata,
             model=model,
-            top_k=5
         )
 
         print("\n🎓 Best matching faculty:")

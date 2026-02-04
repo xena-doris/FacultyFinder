@@ -1,8 +1,21 @@
+"""
+csv_to_sqlite.py
+
+Load cleaned faculty CSV data into a SQLite database.
+This step refreshes the faculty table on every run.
+
+All input/output paths are sourced from the central config module.
+"""
+
 import sqlite3
-import pandas as pd
-import argparse
 from pathlib import Path
 
+import pandas as pd
+
+from config.base import CLEAN_CSV_PATH, DB_PATH
+
+
+# -------------------- DATABASE SCHEMA --------------------
 
 TABLE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS faculty (
@@ -26,9 +39,17 @@ CREATE TABLE IF NOT EXISTS faculty (
 """
 
 
+# -------------------- DB UTILS --------------------
+
 def create_database(db_path: Path) -> sqlite3.Connection:
     """
     Create (or connect to) a SQLite database and ensure schema exists.
+
+    Args:
+        db_path (Path): Path to SQLite DB
+
+    Returns:
+        sqlite3.Connection: Active DB connection
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -40,15 +61,28 @@ def create_database(db_path: Path) -> sqlite3.Connection:
 def truncate_faculty_table(conn: sqlite3.Connection) -> None:
     """
     Remove all existing records from the faculty table.
+
+    Args:
+        conn (sqlite3.Connection): DB connection
     """
     cursor = conn.cursor()
     cursor.execute("DELETE FROM faculty")
     conn.commit()
 
 
-def insert_faculty_data(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
+def insert_faculty_data(
+    conn: sqlite3.Connection,
+    df: pd.DataFrame
+) -> int:
     """
     Insert faculty records into the database.
+
+    Args:
+        conn (sqlite3.Connection): DB connection
+        df (pd.DataFrame): Cleaned faculty data
+
+    Returns:
+        int: Number of records inserted
     """
     cursor = conn.cursor()
 
@@ -88,19 +122,29 @@ def insert_faculty_data(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
     return len(df)
 
 
-def csv_to_sqlite(input_csv: Path, db_path: Path) -> None:
+# -------------------- CORE LOGIC --------------------
+
+def csv_to_sqlite(
+    input_csv: Path,
+    db_path: Path
+) -> None:
     """
-    Load cleaned faculty CSV data into a SQLite database
-    after truncating existing records.
+    Load cleaned faculty CSV data into SQLite database.
+
+    Args:
+        input_csv (Path): Cleaned CSV path
+        db_path (Path): SQLite DB path
     """
     if not input_csv.exists():
         raise FileNotFoundError(f"Input CSV not found: {input_csv}")
+
+    print("🗄️ Loading cleaned CSV into SQLite database...")
 
     df = pd.read_csv(input_csv)
 
     conn = create_database(db_path)
 
-    # 🔥 IMPORTANT FIX
+    # Always refresh table
     truncate_faculty_table(conn)
 
     record_count = insert_faculty_data(conn, df)
@@ -110,34 +154,16 @@ def csv_to_sqlite(input_csv: Path, db_path: Path) -> None:
     print(f"📊 Records inserted: {record_count}")
 
 
-def parse_arguments() -> argparse.Namespace:
-    """
-    Parse command-line arguments.
-    """
-    parser = argparse.ArgumentParser(
-        description="Import cleaned faculty CSV data into SQLite database"
-    )
-
-    parser.add_argument(
-        "--input-csv",
-        type=Path,
-        required=True,
-        help="Path to cleaned faculty CSV file",
-    )
-
-    parser.add_argument(
-        "--db-name",
-        type=Path,
-        default=Path("faculty.db"),
-        help="SQLite database file (default: faculty.db)",
-    )
-
-    return parser.parse_args()
-
+# -------------------- ENTRY POINT --------------------
 
 def main() -> None:
-    args = parse_arguments()
-    csv_to_sqlite(args.input_csv, args.db_name)
+    """
+    Entry point for CSV → SQLite import.
+    """
+    csv_to_sqlite(
+        input_csv=CLEAN_CSV_PATH,
+        db_path=DB_PATH,
+    )
 
 
 if __name__ == "__main__":

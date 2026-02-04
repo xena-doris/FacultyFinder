@@ -1,10 +1,23 @@
-import pandas as pd
+"""
+clean_faculty_csv.py
+
+Clean and normalize faculty CSV data produced after scraping.
+This step prepares data for database storage, embeddings, and search.
+
+All input/output paths are sourced from the central config module.
+"""
+
 import json
 import re
-import argparse
 from pathlib import Path
 from typing import List
 
+import pandas as pd
+
+from config.base import RAW_CSV_PATH, CLEAN_CSV_PATH
+
+
+# -------------------- CONFIG --------------------
 
 LIST_COLUMNS = [
     "education",
@@ -27,9 +40,17 @@ TEXT_COLUMNS = [
 ]
 
 
-def clean_text(text: str) -> str | None:
+# -------------------- UTILS --------------------
+
+def clean_text(text: str | None) -> str | None:
     """
     Normalize and clean a text string.
+
+    Args:
+        text (str | None): Raw text
+
+    Returns:
+        str | None: Cleaned text
     """
     if not isinstance(text, str):
         return None
@@ -41,8 +62,14 @@ def clean_text(text: str) -> str | None:
 def clean_list_items(items: List[str]) -> List[str]:
     """
     Clean individual list items.
+
+    Args:
+        items (List[str]): Raw list values
+
+    Returns:
+        List[str]: Cleaned list
     """
-    cleaned = []
+    cleaned: List[str] = []
     for item in items:
         item = clean_text(item)
         if item and len(item) > 2:
@@ -62,11 +89,9 @@ def parse_list_field(value) -> List[str]:
     if pd.isna(value):
         return []
 
-    # Already a list (rare but safe)
     if isinstance(value, list):
         return clean_list_items(value)
 
-    # Try JSON first
     if isinstance(value, str):
         value = value.strip()
 
@@ -98,13 +123,23 @@ def create_text_for_embedding(df: pd.DataFrame) -> pd.Series:
     return text.apply(clean_text)
 
 
-def clean_faculty_csv(input_csv: Path, output_csv: Path) -> None:
+# -------------------- CORE LOGIC --------------------
+
+def clean_faculty_csv(
+    input_csv: Path,
+    output_csv: Path,
+) -> None:
     """
     Clean and normalize faculty CSV data.
+
+    Args:
+        input_csv (Path): Raw CSV path
+        output_csv (Path): Cleaned CSV path
     """
     if not input_csv.exists():
         raise FileNotFoundError(f"Input CSV not found: {input_csv}")
 
+    print("🧹 Cleaning faculty CSV...")
     df = pd.read_csv(input_csv)
 
     # Normalize null-like values
@@ -118,56 +153,42 @@ def clean_faculty_csv(input_csv: Path, output_csv: Path) -> None:
         if col in df.columns:
             df[col] = df[col].apply(clean_text)
 
-    # Parse and clean list columns (FIXED)
+    # Parse and clean list columns
     for col in LIST_COLUMNS:
         if col in df.columns:
             df[col] = df[col].apply(parse_list_field)
 
     # Remove duplicate faculty entries by email
     if "email" in df.columns:
+        before = len(df)
         df = df.drop_duplicates(subset=["email"], keep="first")
+        after = len(df)
+        print(f"🔁 Removed {before - after} duplicate records")
 
-    # Create embedding text column
+    # Create embedding/search text
     df["text_for_embedding"] = create_text_for_embedding(df)
 
     # Convert list columns to JSON strings for storage
     for col in LIST_COLUMNS:
         df[col] = df[col].apply(json.dumps, ensure_ascii=False)
 
+    output_csv.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(output_csv, index=False)
 
     print(f"✅ Cleaned CSV saved as: {output_csv}")
     print(f"📊 Total faculty records: {len(df)}")
 
 
-def parse_arguments() -> argparse.Namespace:
-    """
-    Parse command-line arguments.
-    """
-    parser = argparse.ArgumentParser(
-        description="Clean and normalize faculty CSV data"
-    )
-
-    parser.add_argument(
-        "--input-csv",
-        type=Path,
-        required=True,
-        help="Path to raw faculty CSV file",
-    )
-
-    parser.add_argument(
-        "--output-csv",
-        type=Path,
-        default=Path("faculty_all_cleaned.csv"),
-        help="Path to output cleaned CSV",
-    )
-
-    return parser.parse_args()
-
+# -------------------- ENTRY POINT --------------------
 
 def main() -> None:
-    args = parse_arguments()
-    clean_faculty_csv(args.input_csv, args.output_csv)
+    """
+    Entry point for CSV cleaning.
+    """
+    clean_faculty_csv(
+        input_csv=RAW_CSV_PATH,
+        output_csv=CLEAN_CSV_PATH,
+    )
 
 
 if __name__ == "__main__":
