@@ -42,6 +42,10 @@ Project1/
 │       ├── faculty_data.json
 │       ├── faculty_embeddings_all_mpnet.json
 │       ├── faculty_meta_all_mpnet.json
+├──frontend/
+│   ├── app.py                         
+│   ├── api_client.py                     
+│   ├── config.py 
 └── README.md            # This file
 ```
 
