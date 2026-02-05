@@ -20,4 +20,5 @@ services:
         value: 3.10.0
       - key: API_URL
         fromService:
-          value: https://faculty-api.onrender.com
+          type: web
+          name: faculty-api
