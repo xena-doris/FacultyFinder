@@ -12,7 +12,7 @@ from typing import List, Dict, Optional
 
 import numpy as np
 from sentence_transformers import SentenceTransformer  # type: ignore
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import cosine_similarity # type: ignore
 
 from config.base import (
     FACULTY_EMBEDDINGS_PATH,
@@ -137,9 +137,12 @@ def recommend_faculty(
             "id": faculty["id"],
             "name": faculty["name"],
             "faculty_type": faculty["faculty_type"],
+            "email": faculty.get("email"),
+            "profile_link": faculty.get("link"),
             "similarity_score": round(float(similarity_scores[idx]), 4),
             "matched_text": faculty.get("text", ""),
         })
+
 
         if len(results) >= top_k:
             break

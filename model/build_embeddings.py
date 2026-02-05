@@ -91,6 +91,8 @@ def main() -> None:
         metadata.append({
             "id": record["id"],
             "name": record["name"],
+            "email": record["email"],
+            "link": record["link"],
             "faculty_type": record["faculty_type"],
             "text": record["text"],  # retained for explainability
         })

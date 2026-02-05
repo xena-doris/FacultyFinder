@@ -11,7 +11,7 @@ derives all paths and settings from the central config module.
 import json
 from typing import Dict, List
 
-import requests
+import requests # type: ignore
 
 from config.base import MODEL_ARTIFACT_DIR, FACULTY_DATA_JSON
 from config.settings import (
@@ -23,6 +23,16 @@ from config.settings import (
 
 
 # -------------------- UTILS --------------------
+
+def safe_str(value) -> str:
+    """
+    Safely convert a value to a stripped string.
+    Returns empty string for None or non-string values.
+    """
+    if not isinstance(value, str):
+        return ""
+    return value.strip()
+
 
 def ensure_output_dir(path) -> None:
     """
@@ -81,8 +91,10 @@ def extract_model_fields(record: Dict) -> Dict:
     """
     return {
         "id": record.get("id"),
-        "name": record.get("name", "").strip(),
-        "faculty_type": record.get("faculty_type", "").strip(),
+        "name": safe_str(record.get("name", "")),
+        "email": safe_str(record.get("email", "")),
+        "link": safe_str(record.get("profile_url", "")),
+        "faculty_type": safe_str(record.get("faculty_type", "")),
         "text": normalize_text(record.get("text_for_embedding", "")),
     }
 

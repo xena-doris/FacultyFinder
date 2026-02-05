@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 from fastapi import FastAPI, HTTPException, Query
+from pipeline.recommender_api import router as recommender_router
+
 
 from config.base import DB_PATH
 
@@ -173,6 +175,8 @@ def create_app(db_path: Path) -> FastAPI:
             )
 
         return parse_json_fields(dict(row))
+
+    app.include_router(recommender_router)
 
     return app
 
