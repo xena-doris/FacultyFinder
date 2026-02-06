@@ -47,3 +47,7 @@ A single pipeline script that integrates all modules and allows execution throug
 
 Problem faced & solution:
 Struggled with maintaining consistent docstring formatting and understanding how to combine multiple modules into one executable pipeline. This was resolved by following a standard docstring structure and using a main pipeline file with a proper entry point, enabling smooth execution of the project from the terminal.
+
+5) model 
+6) frontend
+7) deploy
