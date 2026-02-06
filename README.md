@@ -1,16 +1,23 @@
-# Faculty Finder - DAIICT Faculty Data Scraper & API
+Line 99
 
-A comprehensive web scraping and data processing pipeline that extracts faculty information from DAIICT (Dhirubhai Ambani Institute of Information and Communication Technology) and provides a REST API for querying the data.
+# FacultyFinder
+Please Visit our Faculty Finder here - https://findtherigthfaculty.streamlit.app/
 
-## 📋 Project Overview
+An end-to-end faculty data ingestion, embedding and recommender project. This repository demonstrates how to collect raw faculty records (JSON or scraped), clean and transform them into CSV/SQLite, compute embeddings for faculty profiles, and serve a simple recommender API and a demo frontend.
 
-This project consists of three main components:
+This README is written to help a new contributor reproduce the project locally, understand each component, and run the full pipeline.
 
-1. **Web Scraper** (Scrapy) - Extracts faculty data from DAIICT website
-2. **Data Pipeline** - Cleans, transforms, and stores data in SQLite
-3. **REST API** (FastAPI) - Provides endpoints to query faculty information
+## High-level plan
 
-## 🏗️ Project Structure
+- Recreate a reproducible Python environment
+- Scrape the Facuty data from the DAIICT website
+- Convert raw scarped JSON data into a cleaned CSV
+- Load cleaned data into SQLite
+- Make FastAPI endpoint to easily get the faculty data fromt eh sqlite db
+- Build embeddings for faculty profiles using the FastAPI endpoint created and save artifacts
+- Build a user friendly frontend for the recommender results and host them publically
+
+## Project Structure
 
 ```
 Project1/
@@ -42,11 +49,13 @@ Project1/
 │       ├── faculty_data.json
 │       ├── faculty_embeddings_all_mpnet.json
 │       ├── faculty_meta_all_mpnet.json
-├──frontend/
-│   ├── app.py                         
-│   ├── api_client.py                     
+├──frontend2/
+│   ├── app.py                                             
 │   ├── config.py 
+├── requirements.txt
+├── .gitignore
 └── README.md            # This file
+
 ```
 
 ## 🔄 Data Pipeline Flow
@@ -73,266 +82,181 @@ DAIICT Website
   FastAPI Server
       ↓
   REST API Endpoints
+      ↓
+  fetch_data.py (fetch data for embeddings)
+      ↓
+  faculty_data.json (only required faculty data for embeddings)
+      ↓
+  build_embeddings.py (build embeddings for eah faculty using sentence transformer model)
+        ↓
+  faculty_embeddings_all_mpnet.npy, faculty_meta_all_mpnet.json
+      ↓
+  recommender.py (recommend the best matched faculty)
+      ↓
+  app.py (streamlit frontend application for recommender)
 ```
 
-### Running the Entire Pipeline
-```bash
-python pipeline\pipeline.py --all
-```
+## Requirements
 
+- Python 3.10+ (3.11 or 3.10 recommended — the repo contains a virtual environment for 3.11 but creating a fresh venv is recommended)
+- pip
+- (Optional) GPU for faster embedding computation if you plan to run large models locally
+- Python dependencies: see `requirements.txt`
 
-## 📊 Data Fields Collected
+## Quick setup (copy/paste)
 
-The system collects the following information for each faculty member:
+1. Create and activate a virtual environment (recommended) in a new folder:
 
-- **name** - Faculty member's full name
-- **profile_url** - URL to faculty profile page
-- **email** - Email address
-- **phone** - Phone number
-- **address** - Office/residential address
-- **faculty_web** - Personal website/homepage URL
-- **education** - Educational background (list)
-- **biography** - Professional biography
-- **specialization** - Research specializations (list)
-- **teaching** - Teaching interests/courses (list)
-- **publications** - Research publications (list)
-- **research** - Research interests/areas (list)
-- **source_file** - Source JSON file name
-- **faculty_type** - The type of faculty
+	python3 -m venv .venv
+	on mac/linux - 
+        source .venv/bin/activate
+    on windows - 
+        venv\Scripts\activate
 
+2. Clone the repository and change into the project directory:
 
-## 🚀 Setup & Installation
+	git clone <repo-url>
+	cd FacultyFinder
 
-### Prerequisites
+3. Upgrade pip and install dependencies:
 
-- Python 3.8+
-- pip (Python package manager)
+	pip install --upgrade pip
+	pip install -r requirements.txt
 
-### Install Dependencies
+4. (Optional) Inspect the raw data and artifacts shipped with the repo before running heavy jobs:
 
-```bash
-pip install scrapy fastapi uvicorn pandas sqlite3
-```
+	- Raw JSON files: `daiict_faculty/*.json`
+	- Precomputed embeddings + metadata: `model/artifacts/` and `model/JSON files/` (if present)
 
-## 🕷️ Web Scraping
+## Reproducing the pipeline (recommended order)
 
-### Running the Scraper
+alternatively you could run the entire pipeline using the command -
+    python -m pipeline.pipeline --all
 
-```bash
-python pipeline\pipeline.py --scrape
-```
+1. Convert JSON -> CSV
 
-### Scraper Features
+	The repository contains a script to merge JSON records into a tabular CSV used by the rest of the pipeline.
 
-- **Source**: Scrapes faculty data from `https://www.daiict.ac.in/faculty`
-- **Target**: Extracts detailed information from individual faculty profile pages
-- **Throttling**: Includes 1-second download delay to respect server resources
-- **Robots.txt**: Complies with robots.txt rules
-- **Concurrent Requests**: 1 request per domain to avoid overloading the server
+	python -m pipeline.pipeline --json-to-csv
 
+2. Clean CSV
 
-## 🔧 Data Processing Pipeline
+	Normalize fields, remove duplicates, and prepare the dataset for embedding.
 
-### Step 1: JSON to CSV Conversion
+	python -m pipeline.pipeline --clean-csv
 
-```bash
-python pipeline\pipeline.py --json-to-csv
-```
+3. Load CSV into SQLite
 
-**File**: `json_to_csv.py`
+	Persist a clean, queryable DB for experiments and for the API to read.
 
-Converts scraped JSON files to CSV format:
+	python -m pipeline.pipeline --to-sqlite
 
-**Input**: JSON files from scraper (taken automatically)
-**Output**: `faculty_all.csv` 
+4. Start the Uvicorn FastAPI 
 
-**Features**:
-- Handles nested lists and structures
-- Preserves source file information
-- Cleans and formats data for CSV compatibility
-- Includes `faculty_type` field (categorizes source e.g., `adjunct`, `distinguished`)
+    Start the FastAPI endpoint to host the faculty data on a unvicorn application for the next art of the project.
 
-### Step 2: Data Cleaning
+    uvicorn pipeline.main:app --reload
 
-```bash
-python pipeline\pipeline.py --clean-csv
-```
+4. Build embeddings
 
-**File**: `clean_faculty_csv.py`
+    First Fetch the data from the FastAPI and get all the required faulty data for embeddings
+	Compute vector embeddings for each faculty profile and write numpy arrays + metadata into `model/artifacts/`.
 
-Cleans and normalizes the CSV data:
+    python -m model.fetch_data
+	python -m model.build_embeddings
 
-**Input**: `faculty_all.csv`
-**Output**: `faculty_all_cleaned.csv`
+	Notes: the script may accept parameters for the encoder / batch size — open the file to tune memory or model choices. You may Make the required CHanges in teh Config files
 
-**Features**:
-- Removes duplicate records (by email)
-- Handles missing values
-- Cleans whitespace and text formatting
-- Parses and validates JSON list fields
-- Filters out short/invalid entries
-- Normalizes text across all fields
-- Creates `text_for_embedding` (combined text for search/embeddings)
-- Converts list columns to JSON strings for storage
-- Retains `faculty_type` as a text field for filtering
+5. Run recommender demo frontend
 
-**List Columns Processed**:
-- education
-- biography
-- specialization
-- teaching
-- publications
-- research
-
-### Step 3: SQLite Database Creation
-
-```bash
-python pipeline\pipeline.py --to-sqlite
-```
-
-**File**: `csv_to_sqlite.py`
-
-Imports cleaned CSV data into SQLite database:
-
-**Input**: `faculty_all_cleaned.csv`
-**Output**: `faculty.db`
-
-**Features**:
-- Creates optimized database schema
-- Enforces unique email constraint
-- Auto-incrementing primary keys
-- Handles data type conversions
-- Truncates existing faculty table before refresh
-- Ignores duplicate records
-
-## 🌐 REST API
-
-### Running the API Server
-
-```bash
-python -m uvicorn pipeline.main:app --reload
-```
-
-Server will start at: `http://127.0.0.1:8000`
-
-**Interactive API Documentation**: `http://127.0.0.1:8000/docs`
-
-### API Endpoints
-
-#### 1. Get All Faculty
-
-```
-GET /faculty
-```
-
-**Query Parameters**:
-- `faculty_type` (string, optional) - Filter by faculty type (e.g., `adjunct`, `distinguished`)
-- `limit` (int, default: 100, max: 500) - Number of records to return
-- `offset` (int, default: 0) - Pagination offset
-
-**Example**:
-```bash
-curl "http://127.0.0.1:8000/faculty?limit=10&offset=0"
-```
-
-**Response**:
-```json
-{
-  "faculty": [
-    {
-      "id": 1,
-      "name": "Dr. Faculty Name",
-      "email": "faculty@daiict.ac.in",
-      "phone": "+91-XXXXXXXXXX",
-      "education": ["PhD in Computer Science", "B.Tech in IT"],
-      "specialization": ["AI", "Machine Learning"],
-      "publications": ["Publication 1", "Publication 2"],
-      ...
-    }
-  ],
-  "total": 150,
-  "limit": 10,
-  "offset": 0
-}
-```
-
-#### 2. Get Faculty by ID
-
-```
-GET /faculty/{id}
-```
-
-**Example**:
-```bash
-curl "http://127.0.0.1:8000/faculty/1"
-```
-
-#### 3. Search Faculty (by query text)
-
-```
-GET /faculty/search
-```
-
-**Query Parameters**:
-- `q` (string, required, min_length=2) - Text to search in `name` and `text_for_embedding`
-- `faculty_type` (string, optional) - Filter results by faculty type
-
-**Example**:
-```bash
-curl "http://127.0.0.1:8000/faculty/search?q=Dr.%20John&faculty_type=adjunct"
-```
-
-## 📦 Database Schema
-
-```sql
-CREATE TABLE faculty (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    profile_url TEXT,
-    email TEXT UNIQUE,
-    phone TEXT,
-    address TEXT,
-    faculty_web TEXT,
-    education TEXT,           
-    biography TEXT,           
-    specialization TEXT,      
-    teaching TEXT,            
-    publications TEXT,        
-    research TEXT,            
-    text_for_embedding TEXT,   
-    source_file TEXT,
-    faculty_type TEXT
-)
-```
-
-## 🔍 Data Quality
-
-### Cleaning Process
-
-The data cleaning pipeline includes:
-
-1. **Deduplication** - Removes duplicate records by email
-2. **Null Handling** - Converts empty strings, "null", "None" to NA
-3. **Text Normalization** - Removes extra whitespace and trims text
-4. **List Validation** - Cleans list items and filters short entries
-5. **Type Consistency** - Ensures consistent data types across fields
-6. **JSON Serialization** - Converts lists to JSON strings for storage
-
-### Data Statistics
-
-- **Total Faculty Records**: 113 faculty members (based on current `faculty_all_cleaned.csv`)
-- **Data Sources**: 5 JSON files: `faculty.json`, `adjunct.json`, `distinguished.json`, `international_adjunct.json`, `practice.json`
-- **Completeness**: Various fields may have partial data based on website availability
-
-## 🛠️ Technologies Used
-
-- **Web Scraping**: Scrapy Framework
-- **Data Processing**: Pandas
-- **Database**: SQLite3
-- **API Framework**: FastAPI
-- **Server**: Uvicorn
-- **Language**: Python 3.8+
-
-
-**Last Updated**: January 2026
-**Status**: Active Development
+	You can first the run the recommender.py file locally to test it out in the terminal/cmd
+
+        python -m model.recommender
+
+    You can then run the frontend and check it out too
+
+        streamlit run frontend2/app.py
+
+	Then open the frontend or query the API endpoints as described in the script docstrings.
+    you cna view the publically hosted project on https://findtherigthfaculty.streamlit.app/
+
+## Project structure and purpose of each file/folder
+
+Root files
+- `requirements.txt` — pip dependencies used by the project. Install these after creating a venv.
+- `README.md` — (this file) a guide to the project.
+
+Directories
+- `config/`
+  - `base.py`, `settings.py` — centralized configuration (paths, constants). If scripts fail due to missing paths, check these files first.
+
+- `daiict_faculty/`
+  - Contains example raw JSONs (adjunct.json, distinguished.json, faculty.json, international_adjunct.json, practice.json) and a Scrapy project (`daiict_faculty/daiict_faculty/`) used to scrape DAIICT faculty pages. If you don't plan to run scraping, use the JSON files as the canonical data source.
+
+- `pipeline/`
+  - `json_to_csv.py` — converts raw JSONs into a CSV.
+  - `clean_faculty_csv.py` — cleans and normalizes CSV fields.
+  - `csv_to_sqlite.py` — loads the cleaned CSV into SQLite (`faculty.db`).
+  - `pipeline.py` & `main.py` — orchestration scripts for running the full pipeline.
+  - `recommender_api.py` — a small API to serve recommendations. Check the code to see the available endpoints and expected inputs.
+
+- `model/`
+  - `build_embeddings.py` — script that computes embeddings and stores the resulting artifacts (numpy arrays + metadata JSON).
+  - `fetch_data.py` — helper functions to load saved artifacts.
+  - `recommender.py` — core recommender implementation (nearest neighbors in embedding space).
+  - `artifacts/` — prebuilt embeddings and metadata that the recommender reads if present.
+  - `JSON files/` — copies of input JSON data used for modeling.
+
+- `frontend2/`
+  - `app.py` — example demo application (could be using Streamlit, Flask, or other minimal UI). Check the top of the file for instructions on how to run.
+  - `config.py` — frontend-specific configuration.
+
+- `EDA/` — exploratory notebook(s) used during development (e.g., `EDA.ipynb`). Useful for understanding feature engineering and dataset exploration.
+
+
+## How the pieces interact (contract)
+
+- Inputs: raw JSON records found in `daiict_faculty/*.json`. Each record should contain faculty fields such as name, designation, department, email, research interests, profile text, etc.
+- Processing: `pipeline/*` scripts convert and clean the data, produce a cleaned CSV and a local SQLite database.
+- Modeling: `model/build_embeddings.py` reads the cleaned data and outputs embeddings as numpy arrays plus a metadata JSON that maps vectors to faculty records.
+- Serving: `pipeline/recommender_api.py` or `frontend2/app.py` loads artifacts via `model/fetch_data.py` and serves similarity search queries using `model/recommender.py`.
+
+Success criteria
+- After running the pipeline and building embeddings, the recommender API should return a ranked list of similar faculty for an input query or faculty id.
+
+Error modes
+- Missing or malformed JSON fields — check `pipeline/json_to_csv.py` and `pipeline/clean_faculty_csv.py` for how the code handles missing keys.
+- Path issues — update `config/settings.py` to reflect local directories.
+- Dependency issues — ensure venv active and `requirements.txt` installed.
+
+
+## Adding new data
+
+1. Add JSON files to `daiict_faculty/` using the same schema as the other JSONs.
+2. Re-run `json_to_csv.py` then `clean_faculty_csv.py`.
+3. Rebuild embeddings with `model/build_embeddings.py`.
+4. Restart the API / frontend so they pick up the new artifacts.
+
+## Troubleshooting tips
+
+- ImportError / ModuleNotFoundError: Activate your virtualenv and run `pip install -r requirements.txt`.
+- Scripts fail with file/path errors: open `config/settings.py` and set correct paths.
+- Embedding build runs out of memory: reduce batch size in `model/build_embeddings.py` or compute embeddings on a machine with more RAM / GPU.
+
+## Data Statistics
+- Dataset contains **112 faculty records** with **15 attributes**
+- Academic fields (specialization, research, teaching) are **nearly complete**
+- Contact details (phone, address, website) have higher missing values
+- **391 unique specializations** identified across faculty
+- Dominant research areas include **Machine Learning, Computer Vision, NLP, and Information Retrieval**
+- Average publications per faculty: **~8**
+- Publication count ranges from **0 to 61**
+- Majority of faculty fall under **regular faculty category**
+- Text data shows high variability, suitable for **semantic embedding**
+- Dataset quality supports **statistical analysis and recommendation systems**
+
+## Next improvements (suggestions)
+
+- Add a Dockerfile and docker-compose to make reproduction a single command.
+- Add unit tests that run a small sample through `json_to_csv.py`, `clean_faculty_csv.py`, `build_embeddings.py` to detect regressions.
+- Add OpenAPI / Swagger docs if the recommender API uses FastAPI.
