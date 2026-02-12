@@ -1,7 +1,6 @@
-Line 99
-
 # FacultyFinder
 Please Visit our Faculty Finder here - https://findtherigthfaculty.streamlit.app/
+
 
 An end-to-end faculty data ingestion, embedding and recommender project. This repository demonstrates how to collect raw faculty records (JSON or scraped), clean and transform them into CSV/SQLite, compute embeddings for faculty profiles, and serve a simple recommender API and a demo frontend.
 
