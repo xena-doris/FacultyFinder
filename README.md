@@ -1,6 +1,15 @@
 # FacultyFinder
 Please Visit our Faculty Finder here - https://findtherigthfaculty.streamlit.app/
 
+### 🏠 Home Page
+<p align="center">
+    <img src="assets/home.png" width="600"/>
+</p>
+
+### 📊 Results
+<p align="center">
+    <img src="assets/result.png" width="600"/>
+</p>
 
 An end-to-end faculty data ingestion, embedding and recommender project. This repository demonstrates how to collect raw faculty records (JSON or scraped), clean and transform them into CSV/SQLite, compute embeddings for faculty profiles, and serve a simple recommender API and a demo frontend.
 
@@ -166,6 +175,8 @@ alternatively you could run the entire pipeline using the command -
 
 	Notes: the script may accept parameters for the encoder / batch size — open the file to tune memory or model choices. You may Make the required CHanges in teh Config files
 
+    Sentence Transformer Documentation - This Project Currently uses `all-mpnet-base-v2` you can read futher about this model on the offical documentaion here https://www.sbert.net/docs/sentence_transformer/pretrained_models.html or https://huggingface.co/sentence-transformers/all-mpnet-base-v2
+
 5. Run recommender demo frontend
 
 	You can first the run the recommender.py file locally to test it out in the terminal/cmd
@@ -177,7 +188,7 @@ alternatively you could run the entire pipeline using the command -
         streamlit run frontend2/app.py
 
 	Then open the frontend or query the API endpoints as described in the script docstrings.
-    you cna view the publically hosted project on https://findtherigthfaculty.streamlit.app/
+    you can view the publically hosted project on https://findtherigthfaculty.streamlit.app/
 
 ## Project structure and purpose of each file/folder
 
